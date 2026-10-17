@@ -2,6 +2,7 @@ import { loadGitHub } from './github.js';
 
 (() => {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const touch = matchMedia('(hover: none)').matches;
   if (!reduce) document.documentElement.classList.add('anim');
   const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k,v){ try { localStorage.setItem(k,v); } catch {} } };
   const seeded = s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let x = Math.imul(s ^ s >>> 15, 1 | s); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
@@ -13,7 +14,7 @@ import { loadGitHub } from './github.js';
       'nav.stack':'Stack','nav.proj':'Projetos','nav.gh':'GitHub','nav.traj':'Trajetória','nav.contact':'Contato',
       'nav.projl':'projetos','nav.trajl':'trajetória','nav.contactl':'contato',
       'graph.head':n => `<b>${n}</b> contribuições no último ano`,'graph.less':'Menos','graph.more':'Mais',
-      'graph.hint':'passe o mouse para commitar · clique no gráfico para um novo commit','graph.scroll':'role para explorar ↓',
+      'graph.hint':'passe o mouse para commitar · clique no gráfico para um novo commit','graph.hintTouch':'toque no gráfico para um novo commit','graph.scroll':'role para explorar ↓',
       'role':[['Engenheiro'],['de'],['Software.','acc']],
       'hero.lead':'Engenheiro de Software que gosta de pensar o sistema inteiro: arquitetura, APIs, nuvem e qualidade. Hoje exploro como levar IA generativa para produtos e para o próprio jeito de construir software, com LLMs, agentes e automação.',
       'hero.cta2':'Ver projetos',
@@ -36,7 +37,7 @@ import { loadGitHub } from './github.js';
       'nav.stack':'Stack','nav.proj':'Projects','nav.gh':'GitHub','nav.traj':'Journey','nav.contact':'Contact',
       'nav.projl':'projects','nav.trajl':'journey','nav.contactl':'contact',
       'graph.head':n => `<b>${n}</b> contributions in the last year`,'graph.less':'Less','graph.more':'More',
-      'graph.hint':'hover to commit · click the graph for a new commit','graph.scroll':'scroll to explore ↓',
+      'graph.hint':'hover to commit · click the graph for a new commit','graph.hintTouch':'tap the graph for a new commit','graph.scroll':'scroll to explore ↓',
       'role':[['Software'],['Engineer.','acc']],
       'hero.lead':'Software engineer who likes thinking about the whole system: architecture, APIs, cloud and quality. These days I explore how to bring generative AI into products and into the way software gets built, with LLMs, agents and automation.',
       'hero.cta2':'See projects',
@@ -118,7 +119,9 @@ import { loadGitHub } from './github.js';
   const loc = () => lang === 'pt' ? 'pt-BR' : 'en-US';
 
   /* ================= reveal system ================= */
-  const revealIO = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); onIn(e.target); } }), { threshold: 0.18, rootMargin: '0px 0px -6% 0px' });
+  // 18% of an element, or a fifth of the screen for blocks taller than the viewport (the timeline on phones never reaches 18%)
+  const shown = e => e.isIntersecting && (e.intersectionRatio >= 0.18 || e.intersectionRect.height >= innerHeight * 0.2);
+  const revealIO = new IntersectionObserver(es => es.forEach(e => { if (shown(e)) { e.target.classList.add('in'); revealIO.unobserve(e.target); onIn(e.target); } }), { threshold: [0, 0.02, 0.05, 0.1, 0.18], rootMargin: '0px 0px -6% 0px' });
   const watch = el => { if (!el.classList.contains('in')) revealIO.observe(el); };
   function split(el, words) {
     const txt = words ? words.map(w => w[0]).join(' ') : el.textContent;
@@ -250,6 +253,7 @@ import { loadGitHub } from './github.js';
       const label = `${t('gh.cell')(d.count)} · ${toDate(d.date).toLocaleDateString(loc())}`;
       return `<i class="l${d.level}${i === last ? ' today' : ''}" style="--c:${col}" title="${esc(label)}"></i>`;
     }).join('');
+    const sc = document.getElementById('heat-scroll'); sc.scrollLeft = sc.scrollWidth;
   }
 
   function renderGitHub() {
@@ -450,9 +454,13 @@ import { loadGitHub } from './github.js';
       return makeShape(slot, cells, cols, rows, pitch, sh);
     }
 
-    function build() {
+    // cheap: only the backing store; runs on every viewport change (e.g. iOS toolbars collapsing) so cells never stretch
+    function sizeCanvas() {
       W = document.documentElement.clientWidth; H = document.documentElement.clientHeight; dpr = Math.min(2, devicePixelRatio || 1);
       cv.width = W * dpr; cv.height = H * dpr;
+    }
+    function build() {
+      sizeCanvas();
       const prev = shapes.map(s => s.v);
       shapes = slots.map((s, k) => k === 0 ? heroShape(s, s.clientWidth, Math.min(H * .44, 420)) : iconShape(s, ICONS[s.dataset.shape](), s.clientWidth, s.clientHeight));
       if (built) shapes.forEach((s, k) => { if (prev[k] > .5) { s.v = prev[k]; s.px.set(s.hx); s.py.set(s.hy); s.seen.fill(1); } });
@@ -532,8 +540,19 @@ import { loadGitHub } from './github.js';
       if (k >= 0) { burst(shapes[k], e.clientX, e.clientY); onSlotClick(k); }
       else ripples.push({ x: e.clientX, y: e.clientY, t: performance.now(), p: .55 });
     });
-    let rw = innerWidth, rhh = innerHeight, rt;
-    addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (innerWidth !== rw || Math.abs(innerHeight - rhh) > 120) { rw = innerWidth; rhh = innerHeight; build(); } }, 160); });
+    addEventListener('resize', () => { sizeCanvas(); if (reduce && built) render(0, performance.now()); });
+    // shapes are laid out from their slot's size, so rebuild whenever a slot's box changes:
+    // late CSS/fonts, rotation, breakpoints. The hero sets its own height, so only its width counts.
+    const seen = new Map(); let rt;
+    const ro = new ResizeObserver(es => {
+      let changed = false;
+      for (const e of es) {
+        const w = Math.round(e.contentRect.width), h = e.target === slots[0] ? 0 : Math.round(e.contentRect.height), key = `${w}x${h}`;
+        if (seen.get(e.target) !== key) { seen.set(e.target, key); changed = true; }
+      }
+      if (changed && built) { clearTimeout(rt); rt = setTimeout(build, 120); }
+    });
+    slots.forEach(s => ro.observe(s));
     addEventListener('scroll', () => { if (reduce && built) render(0, performance.now()); }, { passive: true });
 
     return {
@@ -564,6 +583,7 @@ import { loadGitHub } from './github.js';
     card.appendChild(plus); setTimeout(() => plus.remove(), 1200);
   });
 
+  if (touch) document.querySelector('[data-t="graph.hint"]').dataset.t = 'graph.hintTouch';
   applyLang();
   document.querySelectorAll('.rv, .split, .commits, .heat, .hstats').forEach(watch);
   onScroll();
