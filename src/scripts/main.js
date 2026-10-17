@@ -1,3 +1,5 @@
+import { loadGitHub } from './github.js';
+
 (() => {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (!reduce) document.documentElement.classList.add('anim');
@@ -5,90 +7,110 @@
   const seeded = s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let x = Math.imul(s ^ s >>> 15, 1 | s); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
 
   /* ================= content ================= */
+  const GH_USER = 'eduardo-toste';
   const T = {
     pt: {
       'nav.stack':'Stack','nav.proj':'Projetos','nav.gh':'GitHub','nav.traj':'Trajetória','nav.contact':'Contato',
-      'nav.projl':'projetos','nav.trajl':'trajetória','nav.contactl':'contato','resume':'Currículo',
-      'hero.status':'Disponível para novos projetos',
-      'graph.head':n => `<b>${n}</b> contribuições em 2026`,'graph.less':'Menos','graph.more':'Mais',
+      'nav.projl':'projetos','nav.trajl':'trajetória','nav.contactl':'contato',
+      'graph.head':n => `<b>${n}</b> contribuições no último ano`,'graph.less':'Menos','graph.more':'Mais',
       'graph.hint':'passe o mouse para commitar · clique no gráfico para um novo commit','graph.scroll':'role para explorar ↓',
-      'role':[['Software'],['Engineer'],['full-stack.','acc']],
-      'hero.lead':'Construo produtos web de ponta a ponta, do banco de dados à interface. Hoje focado em sistemas que aguentam escala e interfaces que dão vontade de usar.',
-      'hero.cta1':'Baixar currículo','hero.cta2':'Ver projetos','hero.meta':'PDF em português · English version available',
-      'hs.years':'anos escrevendo código','hs.projects':'projetos entregues','hs.commits':'contribuições em 2026','hs.uptime':'uptime nos sistemas que mantenho',
-      'cm.stack':'front, back, dados e infra','cm.proj':'3 produtos no ar','cm.gh':'sequência de 12 dias','cm.traj':'experiência + formação','cm.contact':'aguardando seu merge',
-      'stack.title':'Com o que eu trabalho','stack.lead':'Gosto de ter o sistema inteiro na cabeça, da modelagem dos dados à última animação da interface. Estas são as ferramentas do meu dia a dia.',
-      'stack.yrs':n => `${n} anos`,
-      'proj.title':'Coisas que eu construí','sample':'conteúdo de exemplo',
-      'proj.arch':'arquitetura','proj.res':'resultados','proj.code':'Ver código','proj.live':'Ver ao vivo',
-      'gh.title':'Atividade no GitHub','gh.sample':'dados de exemplo · no site real vêm da API do GitHub','gh.total':'contribuições no último ano',
-      'gh.days':'dias ativos','gh.streak':'sequência atual','gh.best':'maior sequência','gh.top':'melhor dia','gh.year':'out 2025 — out 2026','gh.today':'hoje ▢',
+      'role':[['Engenheiro'],['de'],['Software.','acc']],
+      'hero.lead':'Engenheiro de Software que gosta de pensar o sistema inteiro: arquitetura, APIs, nuvem e qualidade. Hoje exploro como levar IA generativa para produtos e para o próprio jeito de construir software, com LLMs, agentes e automação.',
+      'hero.cta2':'Ver projetos',
+      'hs.years':'anos de experiência em tecnologia','hs.repos':'repositórios públicos no GitHub','hs.commits':'contribuições no último ano','hs.effort':'menos esforço para criar testes no framework que projetei',
+      'cm.stack':'software, cloud e IA','cm.proj':'3 projetos em destaque','cm.gh':n => n > 0 ? `sequência de ${n} ${n === 1 ? 'dia' : 'dias'}` : 'sincronizado com o GitHub','cm.traj':'experiência + formação','cm.contact':'aguardando seu merge',
+      'stack.title':'Com o que eu trabalho','stack.lead':'Engenharia de software de ponta a ponta: arquitetura, APIs, dados, nuvem e testes, com IA entrando cada vez mais no meio do caminho.',
+      'proj.title':'Coisas que eu construí',
+      'proj.arch':'arquitetura','proj.res':'destaques','proj.code':'Código da API','proj.ui':'Código do front-end','proj.live':'Ver ao vivo',
+      'proj.updated':d => `atualizado ${d}`,'proj.stars':n => `${n} ★`,
+      'gh.title':'Atividade no GitHub','gh.total':'contribuições no último ano',
+      'gh.loading':'carregando dados do GitHub…','gh.live':'dados reais · API do GitHub','gh.error':'não foi possível carregar o GitHub agora · tente recarregar',
+      'gh.days':'dias ativos','gh.streak':'sequência atual','gh.best':'maior sequência','gh.top':'melhor dia','gh.today':'hoje ▢',
+      'gh.repos':'repositórios atualizados recentemente','gh.all':'Ver todos no GitHub ↗',
       'traj.title':'Experiência e formação','traj.now':'atual',
-      'contact.title':'Vamos conversar?','contact.lead':'Estou aberto a vagas de Software Engineer, remotas ou em São Paulo, e a projetos freelance. Respondo em até um dia útil.',
-      'contact.copy':'Copiar e-mail','contact.copied':'Copiado ✓','contact.cv':'Currículo ↓',
+      'contact.title':'Vamos conversar?','contact.lead':'Quer falar sobre backend, Java ou algum projeto? Me chame no LinkedIn. Falo inglês em nível avançado (C1).',
       'footer':'Feito com Astro e muitos commits.'
     },
     en: {
       'nav.stack':'Stack','nav.proj':'Projects','nav.gh':'GitHub','nav.traj':'Journey','nav.contact':'Contact',
-      'nav.projl':'projects','nav.trajl':'journey','nav.contactl':'contact','resume':'Résumé',
-      'hero.status':'Open to new opportunities',
-      'graph.head':n => `<b>${n}</b> contributions in 2026`,'graph.less':'Less','graph.more':'More',
+      'nav.projl':'projects','nav.trajl':'journey','nav.contactl':'contact',
+      'graph.head':n => `<b>${n}</b> contributions in the last year`,'graph.less':'Less','graph.more':'More',
       'graph.hint':'hover to commit · click the graph for a new commit','graph.scroll':'scroll to explore ↓',
-      'role':[['Full-stack','acc'],['Software'],['Engineer.']],
-      'hero.lead':'I build web products end to end, from the database to the interface. Currently focused on systems that scale and interfaces people enjoy using.',
-      'hero.cta1':'Download résumé','hero.cta2':'See projects','hero.meta':'PDF in English · versão em português disponível',
-      'hs.years':'years writing code','hs.projects':'projects shipped','hs.commits':'contributions in 2026','hs.uptime':'uptime on systems I run',
-      'cm.stack':'front, back, data and infra','cm.proj':'3 products live','cm.gh':'12-day streak','cm.traj':'experience + education','cm.contact':'waiting for your merge',
-      'stack.title':'What I work with','stack.lead':'I like keeping the whole system in my head, from data modeling to the last interface animation. These are my everyday tools.',
-      'stack.yrs':n => `${n} years`,
-      'proj.title':'Things I’ve built','sample':'sample content',
-      'proj.arch':'architecture','proj.res':'results','proj.code':'View code','proj.live':'Live demo',
-      'gh.title':'GitHub activity','gh.sample':'sample data · the live site reads the GitHub API','gh.total':'contributions in the last year',
-      'gh.days':'active days','gh.streak':'current streak','gh.best':'longest streak','gh.top':'best day','gh.year':'Oct 2025 — Oct 2026','gh.today':'today ▢',
+      'role':[['Software'],['Engineer.','acc']],
+      'hero.lead':'Software engineer who likes thinking about the whole system: architecture, APIs, cloud and quality. These days I explore how to bring generative AI into products and into the way software gets built, with LLMs, agents and automation.',
+      'hero.cta2':'See projects',
+      'hs.years':'years of experience in tech','hs.repos':'public repositories on GitHub','hs.commits':'contributions in the last year','hs.effort':'less effort to write tests with the framework I designed',
+      'cm.stack':'software, cloud and AI','cm.proj':'3 featured projects','cm.gh':n => n > 0 ? `${n}-day streak` : 'synced with GitHub','cm.traj':'experience + education','cm.contact':'waiting for your merge',
+      'stack.title':'What I work with','stack.lead':'End-to-end software engineering: architecture, APIs, data, cloud and testing, with AI increasingly part of the path.',
+      'proj.title':'Things I’ve built',
+      'proj.arch':'architecture','proj.res':'highlights','proj.code':'API code','proj.ui':'Front-end code','proj.live':'Live demo',
+      'proj.updated':d => `updated ${d}`,'proj.stars':n => `${n} ★`,
+      'gh.title':'GitHub activity','gh.total':'contributions in the last year',
+      'gh.loading':'loading GitHub data…','gh.live':'live data · GitHub API','gh.error':'couldn’t load GitHub right now · try reloading',
+      'gh.days':'active days','gh.streak':'current streak','gh.best':'longest streak','gh.top':'best day','gh.today':'today ▢',
+      'gh.repos':'recently updated repositories','gh.all':'See all on GitHub ↗',
       'traj.title':'Experience & education','traj.now':'current',
-      'contact.title':'Let’s talk','contact.lead':'I’m open to Software Engineer roles, remote or in São Paulo, and to freelance projects. I reply within one business day.',
-      'contact.copy':'Copy e-mail','contact.copied':'Copied ✓','contact.cv':'Résumé ↓',
+      'contact.title':'Let’s talk','contact.lead':'Want to talk about backend, Java or a project? Reach out on LinkedIn. My English is advanced (C1).',
       'footer':'Built with Astro and a lot of commits.'
     }
   };
   const STACK = [
-    { name:'Front-end', yrs:6, lv:5, desc:{pt:'Interfaces rápidas, acessíveis e com animação que tem propósito.',en:'Fast, accessible interfaces with purposeful motion.'}, items:['TypeScript','React','Next.js','Astro','Tailwind','GSAP'] },
-    { name:'Back-end', yrs:5, lv:4, desc:{pt:'APIs bem desenhadas, filas e serviços que não caem às 3 da manhã.',en:'Well-designed APIs, queues and services that don’t page you at 3 a.m.'}, items:['Node.js','Go','NestJS','REST','GraphQL'] },
-    { name:{pt:'Dados',en:'Data'}, yrs:5, lv:4, desc:{pt:'Modelagem, índices certos e cache onde faz diferença.',en:'Modeling, the right indexes and caching where it matters.'}, items:['PostgreSQL','Redis','Prisma','Kafka'] },
-    { name:'Infra', yrs:3, lv:3, desc:{pt:'Do Dockerfile ao deploy automático, com observabilidade.',en:'From Dockerfile to automated deploys, with observability.'}, items:['Docker','AWS','Terraform','GitHub Actions'] }
+    { name:'Backend', desc:{pt:'APIs REST seguras, escaláveis e fáceis de manter.',en:'Secure, scalable and maintainable REST APIs.'},
+      items:['Java','Spring Boot','Spring Data JPA','Spring Security','Spring Cloud','Eureka','OpenFeign','Hibernate','JWT','OAuth2','OpenAPI/Swagger'] },
+    { name:{pt:'Arquitetura',en:'Architecture'}, desc:{pt:'Sistemas desacoplados, com regras de negócio isoladas da infraestrutura.',en:'Decoupled systems with business rules isolated from infrastructure.'},
+      items:{pt:['Microsserviços','Arquitetura Hexagonal','Clean Architecture','Camadas','Spring Cloud Gateway','SOLID','Clean Code'],en:['Microservices','Hexagonal Architecture','Clean Architecture','Layered','Spring Cloud Gateway','SOLID','Clean Code']} },
+    { name:{pt:'Dados e mensageria',en:'Data & messaging'}, desc:{pt:'Bancos relacionais e NoSQL, migrações versionadas e eventos assíncronos.',en:'Relational and NoSQL databases, versioned migrations and async events.'},
+      items:['PostgreSQL','MySQL','SQL Server','MongoDB','Redis','Flyway','Apache Kafka','RabbitMQ'] },
+    { name:'AWS & DevOps', desc:{pt:'Do container ao deploy automatizado, com observabilidade.',en:'From container to automated deploys, with observability.'},
+      items:['EC2','Lambda','ECS','Fargate','S3','RDS','DynamoDB','SQS','API Gateway','CloudWatch','IAM','Secrets Manager','Docker','GitHub Actions','Maven'] },
+    { name:{pt:'Testes e qualidade',en:'Testing & quality'}, desc:{pt:'Testes automatizados em todo o ciclo, da unidade à integração com containers reais.',en:'Automated tests across the cycle, from unit to integration with real containers.'},
+      items:['JUnit 5','Mockito','Testcontainers','Rest Assured','JaCoCo','TDD'] },
+    { name:{pt:'Outras linguagens',en:'Other languages'}, desc:{pt:'Para front-end, automação e scripts quando o projeto pede.',en:'For front-end, automation and scripting when the project calls for it.'},
+      items:['TypeScript','JavaScript','Python','SQL','Node.js','React'] }
   ];
   const PROJECTS = [
-    { name:'Ledger', status:{pt:'em produção',en:'in production'}, kind:'fintech',
-      desc:{pt:'Plataforma de conciliação financeira que cruza extratos bancários com o ERP e aponta divergências em minutos.',en:'Financial reconciliation platform that matches bank statements against the ERP and flags mismatches in minutes.'},
-      flow:['React','API Node','Workers','PostgreSQL'],
-      metrics:[['-70%',{pt:'tempo de fechamento mensal',en:'monthly close time'}],['1,2 mi',{pt:'transações por mês',en:'transactions per month'}]],
-      tech:['TypeScript','NestJS','PostgreSQL','Redis','AWS'] },
-    { name:'Pulse', status:{pt:'ao vivo',en:'live'}, kind:{pt:'observabilidade',en:'observability'},
-      desc:{pt:'Monitoramento em tempo real de serviços, com alertas inteligentes e painéis que carregam em milissegundos.',en:'Real-time service monitoring with smart alerts and dashboards that load in milliseconds.'},
-      flow:['Agent Go','Kafka','ClickHouse','Next.js'],
-      metrics:[['~40 ms',{pt:'p95 de consulta',en:'p95 query time'}],['300+',{pt:'serviços monitorados',en:'services monitored'}]],
-      tech:['Go','Kafka','ClickHouse','Next.js','Docker'] },
-    { name:'Atlas UI', status:{pt:'open source',en:'open source'}, kind:'design system',
-      desc:{pt:'Design system open source com componentes acessíveis, tokens de tema e documentação interativa.',en:'Open-source design system with accessible components, theme tokens and interactive docs.'},
-      flow:['Tokens','React','Storybook','Astro docs'],
-      metrics:[['1,4k ★',{pt:'estrelas no GitHub',en:'GitHub stars'}],['60',{pt:'componentes',en:'components'}]],
-      tech:['React','TypeScript','Radix','Astro'] }
+    { name:'Lista.ai', repo:'Lista.ai', ui:'Lista.ai-Ui', kind:{pt:'microsserviços · IA',en:'microservices · AI'},
+      desc:{pt:'Plataforma de gestão de listas de compras em microsserviços, que gera os itens automaticamente a partir de receitas usando IA.',en:'Microservices platform for managing shopping lists that generates items automatically from recipes using AI.'},
+      flow:['React + TS',{pt:'Serviços (Hexagonal)',en:'Services (Hexagonal)'},'OpenFeign · Kafka','Spring AI · GenAI','WhatsApp (Twilio)'],
+      items:{pt:['Backend em Java 21 e Spring Boot com Arquitetura Hexagonal, estruturado em microsserviços desacoplados.','Google GenAI e Spring AI geram itens a partir de receitas; comunicação síncrona via OpenFeign e assíncrona via Kafka.','Notificações via WhatsApp com Twilio e API documentada com Swagger/OpenAPI.'],
+             en:['Java 21 and Spring Boot backend with Hexagonal Architecture, split into decoupled microservices.','Google GenAI and Spring AI generate items from recipes; sync calls via OpenFeign and async via Kafka.','WhatsApp notifications through Twilio and an API documented with Swagger/OpenAPI.']},
+      tech:['Java 21','Spring Boot','Apache Kafka','Spring AI','React','TypeScript'] },
+    { name:'NextMove', repo:'NextMove', ui:'NextMoveUi', kind:{pt:'microsserviços · finanças',en:'microservices · finance'},
+      desc:{pt:'Plataforma de gestão financeira pessoal em microsserviços, com cada serviço escalando de forma independente.',en:'Personal finance platform built on microservices, with each service scaling independently.'},
+      flow:['React','API Gateway','Eureka',{pt:'Serviços Spring',en:'Spring services'},'RabbitMQ','PostgreSQL · MongoDB'],
+      items:{pt:['API Gateway e Service Registry (Eureka) permitindo escalar cada serviço de forma independente.','RabbitMQ para eventos assíncronos e OpenFeign para chamadas síncronas, com dados em PostgreSQL e MongoDB.','Notificações por e-mail, scheduler de lembretes e API documentada com Swagger/OpenAPI.'],
+             en:['API Gateway and Service Registry (Eureka) so each service scales independently.','RabbitMQ for async events and OpenFeign for sync calls, with data in PostgreSQL and MongoDB.','E-mail notifications, a reminder scheduler and an API documented with Swagger/OpenAPI.']},
+      tech:['Java 21','Spring Boot','Spring Cloud','RabbitMQ','PostgreSQL','MongoDB'] },
+    { name:'FightHub', repo:'FightHub', ui:'FightHubUi', kind:{pt:'API REST · gestão',en:'REST API · management'},
+      desc:{pt:'Sistema de gestão para academias de Jiu-Jitsu, cobrindo o ciclo completo de alunos, turmas e presenças.',en:'Management system for Jiu-Jitsu academies, covering the full lifecycle of students, classes and attendance.'},
+      flow:['React','Spring Security · JWT',{pt:'API em camadas',en:'Layered API'},'Swagger/OpenAPI'],
+      items:{pt:['Backend em Java 21 e Spring Boot com Arquitetura em Camadas.','Autenticação JWT com Spring Security e controle de acesso por perfis (RBAC).','Regras de negócio cobertas com JUnit 5 e Mockito e API documentada com Swagger/OpenAPI.'],
+             en:['Java 21 and Spring Boot backend with a Layered Architecture.','JWT authentication with Spring Security and role-based access control (RBAC).','Business rules covered with JUnit 5 and Mockito and an API documented with Swagger/OpenAPI.']},
+      tech:['Java 21','Spring Boot','Spring Security','JWT','React','JUnit 5'] }
   ];
   const TIMELINE = [
-    { work:true, now:true, role:'Software Engineer', org:'Empresa Exemplo', period:{pt:'2024 — hoje',en:'2024 — now'},
-      items:{pt:['Liderei a migração de um monólito para serviços, reduzindo o deploy de 40 min para 6 min.','Criei a camada de cache que derrubou o p95 da API de 1,6 s para 180 ms.'],en:['Led the move from a monolith to services, cutting deploys from 40 min to 6 min.','Built the cache layer that dropped API p95 from 1.6 s to 180 ms.']} },
-    { work:true, role:'Full-stack Developer', org:'Startup Exemplo', period:{pt:'2021 — 2024',en:'2021 — 2024'},
-      items:{pt:['Construí o app web e a API do zero até 20 mil usuários ativos.','Montei CI/CD com testes de ponta a ponta.'],en:['Built the web app and API from zero to 20k active users.','Set up CI/CD with end-to-end tests.']} },
-    { work:false, role:{pt:'Ciência da Computação',en:'B.Sc. Computer Science'}, org:'Universidade Exemplo', period:{pt:'2017 — 2021',en:'2017 — 2021'},
-      items:{pt:['TCC sobre filas distribuídas e tolerância a falhas.'],en:['Thesis on distributed queues and fault tolerance.']} }
+    { work:true, now:true, role:{pt:'Engenheiro de Software Júnior',en:'Junior Software Engineer'}, org:'Itaú Unibanco', period:{pt:'out 2026 — hoje',en:'Oct 2026 — now'},
+      items:{pt:['Desenvolvo e mantenho microsserviços e APIs REST em Java 21 com Spring Boot, aplicando Arquitetura Hexagonal, Clean Code e SOLID.','Integro serviços de forma assíncrona com Apache Kafka e Amazon SQS, tratando idempotência, retentativas e dead-letter queues.','Provisiono e evoluo infraestrutura na AWS (ECS Fargate, Lambda, RDS, DynamoDB, S3) como código com Terraform.','Automatizo build, testes e deploy em pipelines de CI/CD, com análise de qualidade e cobertura (JaCoCo, SonarQube) a cada Pull Request.','Monitoro os serviços em produção com Datadog (APM, logs, métricas e dashboards), configurando alertas e atuando na investigação de incidentes.','Garanto a qualidade com testes unitários e de integração (JUnit 5, Mockito, Testcontainers) e participo de code reviews e cerimônias ágeis.'],
+             en:['Build and maintain microservices and REST APIs in Java 21 with Spring Boot, applying Hexagonal Architecture, Clean Code and SOLID.','Integrate services asynchronously with Apache Kafka and Amazon SQS, handling idempotency, retries and dead-letter queues.','Provision and evolve AWS infrastructure (ECS Fargate, Lambda, RDS, DynamoDB, S3) as code with Terraform.','Automate build, test and deploy in CI/CD pipelines, with quality and coverage checks (JaCoCo, SonarQube) on every Pull Request.','Monitor production services with Datadog (APM, logs, metrics and dashboards), setting up alerts and investigating incidents.','Ensure quality with unit and integration tests (JUnit 5, Mockito, Testcontainers) and take part in code reviews and agile ceremonies.']} },
+    { work:true, role:{pt:'Analista de QA Júnior · Automação em Java e JavaScript',en:'Junior QA Analyst · Java & JavaScript Automation'}, org:'NTT DATA Europe & Latam', period:{pt:'nov 2024 — out 2026',en:'Nov 2024 — Oct 2026'},
+      items:{pt:['Projetei do zero um framework de automação para SAP com arquitetura modular, reduzindo em ~40% o esforço de criação de novos testes.','Desenvolvi testes automatizados de APIs REST em Java, validando contratos, autenticação e regras de negócio dos serviços backend.','Migrei o framework de Python para JavaScript, aumentando a aderência à stack do time e reduzindo o custo de manutenção.','Otimizei pipelines de CI/CD com GitHub Actions, executando os testes a cada Pull Request.','Liderei revisões de código e aprovação de PRs junto ao Tech Lead, além de documentação técnica e onboarding.'],
+             en:['Designed from scratch a modular automation framework for SAP, cutting the effort to create new tests by ~40%.','Built automated REST API tests in Java, validating contracts, authentication and business rules of backend services.','Migrated the framework from Python to JavaScript, aligning it with the team’s stack and lowering maintenance cost.','Optimized CI/CD pipelines with GitHub Actions, running tests on every Pull Request.','Led code reviews and PR approvals with the Tech Lead, plus technical documentation and onboarding.']} },
+    { work:true, role:{pt:'Desenvolvedor Full Stack Júnior',en:'Junior Full Stack Developer'}, org:'FKL Service Tecnologia', period:{pt:'set 2024 — nov 2024',en:'Sep 2024 — Nov 2024'},
+      items:{pt:['Desenvolvi aplicações backend e frontend com Node.js, TypeScript e React, reduzindo em ~15% o tempo de tarefas logísticas.','Otimizei consultas SQL e corrigi falhas críticas em produção, reduzindo em ~25% os chamados de suporte.','Integrei APIs REST entre frontend e backend, garantindo consistência no fluxo de dados.'],
+             en:['Built backend and frontend applications with Node.js, TypeScript and React, cutting logistics task time by ~15%.','Optimized SQL queries and fixed critical production failures, reducing support tickets by ~25%.','Integrated REST APIs between frontend and backend, keeping the data flow consistent.']} },
+    { work:true, role:{pt:'Analista de Infra Services',en:'Infrastructure Services Analyst'}, org:'TOTVS Paulista', period:{pt:'ago 2023 — ago 2024',en:'Aug 2023 — Aug 2024'},
+      items:{pt:['Sustentei ambientes corporativos de servidores e bancos de dados, mantendo SLA acima de 95%.','Ajustei o monitoramento no Zabbix, reduzindo em ~20% os alertas falsos e acelerando a resposta a incidentes.'],
+             en:['Supported corporate server and database environments, keeping SLA above 95%.','Tuned Zabbix monitoring, cutting false alerts by ~20% and speeding up incident response.']} },
+    { work:false, role:{pt:'Tecnólogo em Análise e Desenvolvimento de Sistemas',en:'Associate Degree in Systems Analysis and Development'}, org:'FACENS · Faculdade de Engenharia de Sorocaba', period:{pt:'2022 — 2024',en:'2022 — 2024'},
+      items:{pt:['Estrutura de Dados, POO, Banco de Dados, Engenharia de Software, Arquitetura de Sistemas, Java e Testes de Software.'],
+             en:['Data Structures, OOP, Databases, Software Engineering, Systems Architecture, Java and Software Testing.']} }
   ];
-  const COMMITS = ['feat(api): rate limiting por cliente','fix(web): hidratação do gráfico no Safari','perf(db): índice parcial em payments','feat(ui): tema escuro com tokens','chore(ci): cache do pnpm no Actions','refactor(worker): fila com retry exponencial','test(e2e): fluxo de checkout','feat(auth): login com passkeys','perf(edge): cache de 60s nas rotas públicas','docs: guia de contribuição'];
+  // ticker fallback while GitHub loads (or if it fails); replaced by recently pushed repos
+  const COMMITS = ['feat(lista-ai): itens gerados com Spring AI','feat(nextmove): API Gateway + Eureka','feat(fighthub): RBAC com Spring Security','test: integração com Testcontainers','chore(ci): testes a cada PR no GitHub Actions','feat(events): consumidores Kafka','feat(queue): eventos assíncronos com RabbitMQ','refactor: arquitetura hexagonal','docs: contratos com OpenAPI','perf(db): consultas SQL otimizadas'];
 
-  // PDFs live in /public; replace them with the real files
-  const RESUME = { pt: '/curriculo-eduardo-toste.pdf', en: '/resume-eduardo-toste.pdf' };
 
   let lang = store.get('pf-lang') === 'en' ? 'en' : 'pt';
-  let curProj = 0;
+  let curProj = 0, heroCount = null;
   const t = k => T[lang][k];
   const v = x => typeof x === 'string' ? x : x[lang];
   const loc = () => lang === 'pt' ? 'pt-BR' : 'en-US';
@@ -122,27 +144,29 @@
   function renderStack() {
     document.getElementById('stack-grid').innerHTML = STACK.map((s, i) => `
       <div class="card hov rv" style="--d:${120 + i * 90}ms">
-        <div class="sk-head"><h3>${v(s.name)}</h3><span class="lv" title="${t('stack.yrs')(s.yrs)}">${Array.from({ length: 5 }, (_, k) => `<i class="${k < s.lv - 1 ? 'on' : k < s.lv ? 'mid' : ''}"></i>`).join('')}</span></div>
-        <p class="sk-desc">${s.desc[lang]} <span style="font:12px var(--f-m)">· ${t('stack.yrs')(s.yrs)}</span></p>
-        <div class="chips">${s.items.map(x => `<span>${x}</span>`).join('')}</div>
+        <div class="sk-head"><h3>${v(s.name)}</h3></div>
+        <p class="sk-desc">${s.desc[lang]}</p>
+        <div class="chips">${(Array.isArray(s.items) ? s.items : s.items[lang]).map(x => `<span>${x}</span>`).join('')}</div>
       </div>`).join('');
     document.querySelectorAll('#stack-grid .rv').forEach(watch);
   }
   function renderProjects(animate) {
     const tabs = document.getElementById('ptabs'), d = document.getElementById('pdetail');
-    tabs.innerHTML = PROJECTS.map((p, i) => `<button class="ptab" role="tab" id="pt-${i}" aria-controls="pdetail" aria-selected="${i === curProj}" tabindex="${i === curProj ? 0 : -1}">${p.name}<span>${v(p.kind)} · ${p.status[lang]}</span></button>`).join('');
-    const p = PROJECTS[curProj];
+    tabs.innerHTML = PROJECTS.map((p, i) => `<button class="ptab" role="tab" id="pt-${i}" aria-controls="pdetail" aria-selected="${i === curProj}" tabindex="${i === curProj ? 0 : -1}">${v(p.name)}<span>${v(p.kind)}</span></button>`).join('');
+    const p = PROJECTS[curProj], r = repoInfo(p.repo), ui = repoInfo(p.ui);
+    const meta = r ? [r.lang, r.stars ? t('proj.stars')(r.stars) : '', t('proj.updated')(fmtMonth(r.pushed))].filter(Boolean) : [];
     d.setAttribute('aria-labelledby', `pt-${curProj}`);
     d.innerHTML = `
-      <span class="pstatus">${p.status[lang]}</span>
-      <h3>${p.name}</h3>
-      <p>${p.desc[lang]}</p>
+      <span class="pstatus">${v(p.kind)}</span>
+      <h3>${v(p.name)}</h3>
+      <p>${r?.desc && lang === 'pt' ? esc(r.desc) : p.desc[lang]}</p>
       <p class="sublabel">${t('proj.arch')}</p>
-      <div class="flow">${p.flow.map(s => `<span>${s}</span>`).join('<i>→</i>')}</div>
+      <div class="flow">${p.flow.map(s => `<span>${v(s)}</span>`).join('<i>→</i>')}</div>
       <p class="sublabel">${t('proj.res')}</p>
-      <div class="metrics">${p.metrics.map(m => `<div><b>${m[0]}</b><span>${m[1][lang]}</span></div>`).join('')}</div>
+      <ul class="phl">${p.items[lang].map(x => `<li>${x}</li>`).join('')}</ul>
       <div class="chips">${p.tech.map(s => `<span>${s}</span>`).join('')}</div>
-      <div class="plinks"><a class="btn g sm" href="#projetos">${t('proj.code')} ↗</a><a class="btn g sm" href="#projetos">${t('proj.live')} ↗</a></div>`;
+      ${meta.length ? `<p class="gmeta">${meta.map(esc).join(' · ')}</p>` : ''}
+      <div class="plinks"><a class="btn g sm" href="${r?.url || `https://github.com/${GH_USER}/${p.repo}`}" target="_blank" rel="noopener">${t('proj.code')} ↗</a>${p.ui ? `<a class="btn g sm" href="${ui?.url || `https://github.com/${GH_USER}/${p.ui}`}" target="_blank" rel="noopener">${t('proj.ui')} ↗</a>` : ''}${r?.homepage ? `<a class="btn g sm" href="${esc(r.homepage)}" target="_blank" rel="noopener">${t('proj.live')} ↗</a>` : ''}</div>`;
     if (animate && !reduce) { d.classList.remove('swap'); void d.offsetWidth; d.classList.add('swap'); }
     tabs.querySelectorAll('.ptab').forEach((b, i) => {
       b.addEventListener('click', () => { if (i === curProj) return; curProj = i; renderProjects(true); document.getElementById(`pt-${i}`).focus(); FX.pulse(); });
@@ -161,7 +185,7 @@
         <div>
           <div class="tl-head"><h3>${v(e.role)}${e.now ? `<span class="now-tag">${t('traj.now')}</span>` : ''}</h3><span>${e.period[lang]}</span></div>
           <p class="tl-org">${e.org}</p>
-          <ul>${e.items[lang].map(i => `<li>${i}</li>`).join('')}</ul>
+          ${e.items ? `<ul>${e.items[lang].map(i => `<li>${i}</li>`).join('')}</ul>` : ''}
         </div>
       </div>`).join('');
     const isIn = tl.classList.contains('in');
@@ -170,7 +194,11 @@
   }
   function renderTicker() {
     const r = seeded(9), hex = () => Math.floor(r() * 0xfffffff).toString(16).padStart(7, '0');
-    const items = COMMITS.map(c => { const [type, ...rest] = c.split(':'); const q = r(); return `<span><i style="background:var(--c${q < .3 ? 2 : q < .7 ? 3 : 4})"></i><b>${hex()}</b><em>${type}:</em>${rest.join(':')}</span>`; }).join('');
+    const dot = () => { const q = r(); return `<i style="background:var(--c${q < .3 ? 2 : q < .7 ? 3 : 4})"></i>`; };
+    const repos = ownRepos().slice(0, 12);
+    const items = repos.length
+      ? repos.map(x => `<span>${dot()}<b>${fmtDay(x.pushed)}</b><em>push(${esc(x.name)}):</em> ${esc(x.desc ? x.desc.slice(0, 70) + (x.desc.length > 70 ? '…' : '') : x.lang || 'update')}</span>`).join('')
+      : COMMITS.map(c => { const [type, ...rest] = c.split(':'); return `<span>${dot()}<b>${hex()}</b><em>${type}:</em>${rest.join(':')}</span>`; }).join('');
     document.getElementById('ticker').innerHTML = items + items;
   }
   function applyLang() {
@@ -180,36 +208,84 @@
     document.querySelectorAll('h2.split').forEach(el => split(el));
     split(document.getElementById('role'), t('role'));
     document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === lang));
-    renderStack(); renderProjects(false); renderTimeline(); renderGraphHead();
-    document.querySelectorAll('[data-cv="auto"]').forEach(a => a.href = RESUME[lang]);
+    renderStack(); renderProjects(false); renderTimeline(); renderGraphHead(); renderGitHub(); renderTicker();
     document.querySelectorAll('[data-count]').forEach(b => { if (b.dataset.done) { const dec = +(b.dataset.dec || 0); b.textContent = parseFloat(b.dataset.count).toLocaleString(loc(), { minimumFractionDigits: dec, maximumFractionDigits: dec }) + (b.dataset.suffix || ''); } });
   }
   document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => { if (lang === b.dataset.lang) return; lang = b.dataset.lang; store.set('pf-lang', lang); applyLang(); }));
 
-  /* ================= résumé, copy, clock ================= */
-  const rBtn = document.getElementById('resume-btn'), rMenu = document.getElementById('resume-menu');
-  rBtn.addEventListener('click', e => { e.stopPropagation(); const open = rMenu.hidden; rMenu.hidden = !open; rBtn.setAttribute('aria-expanded', open); });
-  document.addEventListener('click', e => { if (!e.target.closest('.resume')) { rMenu.hidden = true; rBtn.setAttribute('aria-expanded', 'false'); } });
-  rMenu.addEventListener('click', e => { if (e.target.closest('a')) { rMenu.hidden = true; rBtn.setAttribute('aria-expanded', 'false'); } });
-  const copyBtn = document.getElementById('copy');
-  copyBtn.addEventListener('click', () => {
-    const email = document.getElementById('email');
-    const done = () => { copyBtn.textContent = t('contact.copied'); FX.pulse(); setTimeout(() => copyBtn.textContent = t('contact.copy'), 1800); };
-    if (navigator.clipboard) navigator.clipboard.writeText(email.textContent).then(done, () => getSelection().selectAllChildren(email));
-    else getSelection().selectAllChildren(email);
-  });
+  /* ================= clock ================= */
   const clockFmt = new Intl.DateTimeFormat('pt-BR', { hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
   const tickClock = () => document.getElementById('clock').textContent = clockFmt.format(new Date());
   tickClock(); setInterval(tickClock, 15000);
 
-  /* ================= DOM heatmap ================= */
-  const rh = seeded(7); let cells = '';
-  for (let i = 0; i < 53 * 7; i++) {
-    const r = rh(), col = Math.floor(i / 7), boost = col / 53;
-    const l = r < 0.34 - boost * 0.14 ? 0 : r < 0.62 ? 1 : r < 0.82 ? 2 : r < 0.94 ? 3 : 4;
-    cells += `<i class="l${l}${i === 53 * 7 - 1 ? ' today' : ''}" style="--c:${col}"></i>`;
+  /* ================= GitHub (live) ================= */
+  let gh = { state: 'loading', profile: null, repos: null, cal: null };
+  const esc = x => String(x).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  const toDate = x => new Date(x.length === 10 ? x + 'T12:00:00' : x);
+  const mon = d => d.toLocaleDateString(loc(), { month: 'short' }).replace('.', '');
+  const fmtMonth = x => { const d = toDate(x); return `${mon(d)} ${d.getFullYear()}`; };
+  const fmtDay = x => { const d = toDate(x); return `${String(d.getDate()).padStart(2, '0')} ${mon(d)}`; };
+  const repoInfo = name => gh.repos?.find(r => r.name.toLowerCase() === name?.toLowerCase()) || null;
+  const ownRepos = () => (gh.repos || []).filter(r => !r.fork && !r.archived && r.name.toLowerCase() !== GH_USER);
+
+  // fills a counter as soon as data arrives; animates it if its section is already on screen
+  function setCount(id, n) {
+    const b = document.getElementById(id); if (!b || n == null) return;
+    const was = b.dataset.count; b.dataset.count = n;
+    if (was == n && b.dataset.done) return;
+    delete b.dataset.done;
+    if (b.closest('.in')) countUp(b);
   }
-  document.getElementById('heat').innerHTML = cells;
+
+  function renderHeat() {
+    const el = document.getElementById('heat'), c = gh.cal;
+    if (!c) { el.innerHTML = Array.from({ length: 53 * 7 }, (_, i) => `<i style="--c:${Math.floor(i / 7)}"></i>`).join(''); return; }
+    const last = c.cells.findLastIndex(d => d);
+    el.innerHTML = c.cells.map((d, i) => {
+      const col = Math.floor(i / 7);
+      if (!d) return `<i class="${d === undefined ? 'pad' : ''}" style="--c:${col}"></i>`;
+      const label = `${d.count} — ${toDate(d.date).toLocaleDateString(loc())}`;
+      return `<i class="l${d.level}${i === last ? ' today' : ''}" style="--c:${col}" title="${label}"></i>`;
+    }).join('');
+  }
+
+  function renderGitHub() {
+    const src = document.getElementById('gh-src'), c = gh.cal;
+    src.textContent = t(gh.state === 'ok' ? 'gh.live' : gh.state === 'error' ? 'gh.error' : 'gh.loading');
+    document.getElementById('gh-year').textContent = c?.from ? `${fmtMonth(c.from)} — ${fmtMonth(c.to)}` : '';
+    document.getElementById('cm-gh').textContent = t('cm.gh')(c?.current || 0);
+    const top = document.getElementById('gh-top-l');
+    top.textContent = c?.bestDate ? `${t('gh.top')} · ${fmtDay(c.bestDate)}` : t('gh.top');
+
+    const list = ownRepos().slice(0, 4), box = document.getElementById('repos');
+    document.getElementById('repos-wrap').hidden = !list.length;
+    box.innerHTML = list.map((r, i) => `
+      <a class="card hov repo rv in" style="--d:${i * 60}ms" href="${r.url}" target="_blank" rel="noopener">
+        <b>${esc(r.name)}</b>
+        <p>${esc(r.desc || '')}</p>
+        <span class="rmeta">${[r.lang, r.stars ? `★ ${r.stars}` : '', fmtMonth(r.pushed)].filter(Boolean).map(esc).join(' · ')}</span>
+      </a>`).join('');
+  }
+
+  async function initGitHub() {
+    renderHeat();
+    try {
+      const { profile, repos, calendar, errors } = await loadGitHub(GH_USER);
+      errors.forEach(e => console.warn('[github]', e));
+      gh = { state: profile || repos || calendar ? 'ok' : 'error', profile, repos, cal: calendar };
+    } catch (e) { console.warn('[github]', e); gh.state = 'error'; }
+    const c = gh.cal;
+    if (c) {
+      heroCount = c.total; renderGraphHead();
+      ['hs-commits', 'gh-total'].forEach(id => setCount(id, c.total));
+      setCount('gh-days', c.active); setCount('gh-streak', c.current); setCount('gh-best', c.longest); setCount('gh-top', c.best);
+      const heat = document.getElementById('heat'), shown = heat.classList.contains('in');
+      heat.classList.remove('in'); renderHeat();
+      if (shown) { void heat.offsetWidth; heat.classList.add('in'); }
+    }
+    setCount('hs-repos', gh.profile?.public_repos ?? (gh.repos ? ownRepos().length : null));
+    renderGitHub(); renderProjects(false); renderTicker();
+  }
 
   /* ================= nav state + progress ================= */
   const sections = [...document.querySelectorAll('main > section')];
@@ -448,7 +524,7 @@
     document.addEventListener('pointerleave', () => { mx = my = -1e4; });
     addEventListener('blur', () => { mx = my = -1e4; });
     addEventListener('pointerdown', e => {
-      if (reduce || e.target.closest('a,button,input,.card,.ptab,code,.menu,.commit-card,.cgrid')) return;
+      if (reduce || e.target.closest('a,button,input,.card,.ptab,code,.commit-card,.cgrid')) return;
       const k = shapes.findIndex(sh => { const r = sh.slot.getBoundingClientRect(); return sh.v > .5 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; });
       if (k >= 0) { burst(shapes[k], e.clientX, e.clientY); onSlotClick(k); }
       else ripples.push({ x: e.clientX, y: e.clientY, t: performance.now(), p: .55 });
@@ -469,11 +545,11 @@
   })();
 
   /* ================= commit feedback when a drawing is clicked ================= */
-  let heroCount = 1248;
   const hexChars = '0123456789abcdef';
-  function renderGraphHead() { document.getElementById('ghead').innerHTML = t('graph.head')(heroCount.toLocaleString(loc())); }
+  function renderGraphHead() { document.getElementById('ghead').innerHTML = t('graph.head')(heroCount == null ? '—' : heroCount.toLocaleString(loc())); }
   FX.onClick(k => {
     if (k === 0) {
+      if (heroCount == null) return;
       heroCount++; renderGraphHead();
       const b = document.querySelector('#ghead b'); b.classList.add('bump');
       return;
@@ -485,9 +561,9 @@
     card.appendChild(plus); setTimeout(() => plus.remove(), 1200);
   });
 
-  renderTicker();
   applyLang();
   document.querySelectorAll('.rv, .split, .commits, .heat, .hstats').forEach(watch);
   onScroll();
   FX.start();
+  initGitHub();
 })();
