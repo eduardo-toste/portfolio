@@ -194,7 +194,7 @@ import { loadGitHub } from './github.js';
         </div>
       </div>`).join('');
     const isIn = tl.classList.contains('in');
-    tl.querySelectorAll('.rv').forEach(el => isIn ? el.classList.add('in') : null);
+    tl.querySelectorAll('.rv').forEach(el => isIn ? el.classList.add('in') : watch(el));
     if (!isIn) watch(tl);
   }
   function renderTicker() {
