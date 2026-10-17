@@ -22,7 +22,6 @@ a{color:inherit}
 .acc{color:var(--a1)}
 .wrap{max-width:1320px;margin:0 auto;width:100%}
 
-#fx{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;pointer-events:none}
 #progress{position:fixed;top:0;left:0;height:2px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:var(--a1);z-index:30}
 
 /* ---------- motion system ---------- */
@@ -113,7 +112,8 @@ main{position:relative;z-index:1}
 .sec{padding:11vh var(--gut-r) 11vh var(--gut-l)}
 .sec-in{display:grid;grid-template-columns:minmax(0,4.6fr) minmax(0,7.4fr);gap:clamp(28px,5vw,80px)}
 .slot-wrap{position:sticky;top:max(88px,13vh);display:grid;gap:14px}
-.slot{-webkit-tap-highlight-color:transparent;cursor:pointer;width:100%;aspect-ratio:1/1;max-height:62vh;border:1px solid var(--line);border-radius:14px;background:linear-gradient(color-mix(in srgb,var(--surface) 40%,transparent),transparent)}
+.slot{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;cursor:pointer;width:100%;aspect-ratio:1/1;max-height:62vh;border:1px solid var(--line);border-radius:14px;background:linear-gradient(color-mix(in srgb,var(--surface) 40%,transparent),transparent)}
+.slot > canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
 .commit-card{position:relative;display:grid;gap:6px;font:13px var(--f-m);border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--bg)}
 .commit-card .ch{display:flex;justify-content:space-between;gap:10px;color:var(--muted)}
 .commit-card .ch b{color:var(--a2);font-weight:500}
@@ -222,6 +222,10 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
   .ptab:hover{transform:translateX(3px)}
   .repos-head a:hover{text-decoration:underline}
   .cgrid a:hover{border-color:var(--a1);transform:translateY(-3px)}
+}
+
+@media (hover:none){
+  .top{-webkit-backdrop-filter:none;backdrop-filter:none;background:color-mix(in srgb,var(--bg) 96%,transparent)}
 }
 
 @media (max-width:1100px){ .nav{display:none} .proj{grid-template-columns:minmax(0,1fr)} .ptabs{grid-template-columns:repeat(3,minmax(0,1fr))} }

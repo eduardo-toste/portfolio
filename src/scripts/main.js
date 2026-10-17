@@ -392,13 +392,16 @@ import { loadGitHub } from './github.js';
   const CELLS = ['#161B22', '#0E4429', '#006D32', '#26A641', '#39D353'];
   const HOT = '126,231,135';
   const FX = (() => {
-    const cv = document.getElementById('fx'), ctx = cv.getContext('2d');
+    // every slot draws on its own canvas inside it, so drawings scroll natively with the page
+    // (a fixed full-screen canvas lagged behind touch scrolling on phones) and off-screen slots cost nothing
     const slots = [...document.querySelectorAll('.slot')];
-    let W = 0, H = 0, dpr = 1, shapes = [], mx = -1e4, my = -1e4, ripples = [], built = false, running = false, last = 0, onSlotClick = () => {};
+    const near = new Set();
+    let dpr = 1, shapes = [], mx = -1e4, my = -1e4, ripples = [], built = false, running = false, last = 0, onSlotClick = () => {};
     const clamp = x => x < 0 ? 0 : x > 1 ? 1 : x;
     const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
     const outCubic = x => 1 - Math.pow(1 - x, 3);
     const WIN = .3;
+    const rr = typeof Path2D.prototype.roundRect === 'function';
 
     function makeShape(slot, cells, cols, rows, pitch, sh) {
       const n = cells.length, f32 = () => new Float32Array(n);
@@ -454,71 +457,79 @@ import { loadGitHub } from './github.js';
       return makeShape(slot, cells, cols, rows, pitch, sh);
     }
 
-    // cheap: only the backing store; runs on every viewport change (e.g. iOS toolbars collapsing) so cells never stretch
-    function sizeCanvas() {
-      W = document.documentElement.clientWidth; H = document.documentElement.clientHeight; dpr = Math.min(2, devicePixelRatio || 1);
-      cv.width = W * dpr; cv.height = H * dpr;
+    function canvasFor(slot) {
+      let cv = slot.querySelector(':scope > canvas');
+      if (!cv) { cv = document.createElement('canvas'); cv.setAttribute('aria-hidden', 'true'); slot.appendChild(cv); }
+      return cv;
     }
     function build() {
-      sizeCanvas();
+      dpr = Math.min(2, devicePixelRatio || 1);
       const prev = shapes.map(s => s.v);
-      shapes = slots.map((s, k) => k === 0 ? heroShape(s, s.clientWidth, Math.min(H * .44, 420)) : iconShape(s, ICONS[s.dataset.shape](), s.clientWidth, s.clientHeight));
+      shapes = slots.map((s, k) => k === 0 ? heroShape(s, s.clientWidth, Math.min(innerHeight * .44, 420)) : iconShape(s, ICONS[s.dataset.shape](), s.clientWidth, s.clientHeight));
+      shapes.forEach(sh => {
+        const cv = canvasFor(sh.slot);
+        sh.w = sh.slot.clientWidth; sh.h = sh.slot.clientHeight;
+        cv.width = Math.round(sh.w * dpr); cv.height = Math.round(sh.h * dpr);
+        sh.ctx = cv.getContext('2d');
+      });
       if (built) shapes.forEach((s, k) => { if (prev[k] > .5) { s.v = prev[k]; s.px.set(s.hx); s.py.set(s.hy); s.seen.fill(1); } });
       built = true;
-      if (reduce) render(0, performance.now());
+      if (reduce) shapes.forEach(sh => draw(sh, 0, performance.now()));
     }
-    function render(dt, now) {
+    function reset(sh) {
+      sh.v = 0; sh.seen.fill(0); sh.px.set(sh.sx); sh.py.set(sh.sy); sh.vx.fill(0); sh.vy.fill(0); sh.heat.fill(0);
+      sh.ctx.clearRect(0, 0, sh.ctx.canvas.width, sh.ctx.canvas.height);
+    }
+    function draw(sh, dt, now) {
+      const H = innerHeight, k = 1 - Math.exp(-dt / 320), R = 74, R2 = R * R;
+      const r = sh.slot.getBoundingClientRect(), bx = r.left + sh.slot.clientLeft, by = r.top + sh.slot.clientTop;
+      const vis = clamp((Math.min(r.bottom, H) - Math.max(r.top, 0)) / Math.max(1, r.height));
+      sh.target = smooth(.2, .7, vis);
+      sh.v = reduce ? sh.target : sh.v + (sh.target - sh.v) * k;
+      if (Math.abs(sh.v - sh.target) < .0005) sh.v = sh.target;
+      const ctx = sh.ctx;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, W, H);
-      const rr = typeof Path2D.prototype.roundRect === 'function';
-      const k = 1 - Math.exp(-dt / 320), R = 74, R2 = R * R;
-      ripples = ripples.filter(r => (now - r.t) * .85 < Math.max(W, H) * 1.2);
-      for (const sh of shapes) {
-        const r = sh.slot.getBoundingClientRect(), bx = r.left + sh.slot.clientLeft, by = r.top + sh.slot.clientTop;
-        const vis = clamp((Math.min(r.bottom, H) - Math.max(r.top, 0)) / Math.max(1, r.height));
-        sh.target = smooth(.2, .7, vis);
-        sh.v = reduce ? sh.target : sh.v + (sh.target - sh.v) * k;
-        if (Math.abs(sh.v - sh.target) < .0005) sh.v = sh.target;
-        if (r.bottom < -40 || r.top > H + 40) { if (sh.v < .001) { sh.seen.fill(0); sh.px.set(sh.sx); sh.py.set(sh.sy); sh.vx.fill(0); sh.vy.fill(0); } continue; }
-        if (sh.v < .001 && !reduce) continue;
-        const base = CELLS.map(() => new Path2D()), glow = [0, 1, 2, 3, 4].map(() => new Path2D());
-        const add = (path, x, y, s) => { const o = s / 2; if (rr) path.roundRect(x - o, y - o, s, s, s * .22); else path.rect(x - o, y - o, s, s); };
-        const rising = sh.target >= sh.v, lmx = mx - bx, lmy = my - by;
-        for (let i = 0; i < sh.n; i++) {
-          const e = reduce ? 1 : clamp((sh.v - sh.th[i]) / WIN), ee = outCubic(e);
-          let h = sh.heat[i];
-          if (!reduce) {
-            if (e > 0 && !sh.seen[i]) { sh.seen[i] = 1; if (rising && sh.l[i] > 0) h = Math.max(h, .7); }
-            if (e <= 0) sh.seen[i] = 0;
-            const tx = sh.sx[i] + (sh.hx[i] - sh.sx[i]) * ee, ty = sh.sy[i] + (sh.hy[i] - sh.sy[i]) * ee;
-            let vx = (sh.vx[i] + (tx - sh.px[i]) * .11) * .8, vy = (sh.vy[i] + (ty - sh.py[i]) * .11) * .8;
-            if (e > 0) {
-              const dx = sh.px[i] - lmx, dy = sh.py[i] - lmy, d2 = dx * dx + dy * dy;
-              if (d2 < R2) { const d = Math.sqrt(d2) || 1, f = 1 - d / R; h += (Math.max(h, .35 + f * .65) - h) * .3; vx += dx / d * f * .8; vy += dy / d * f * .8; }
-              for (const rp of ripples) {
-                const rad = (now - rp.t) * .85, ex = bx + sh.px[i] - rp.x, ey = by + sh.py[i] - rp.y, band = rad - Math.sqrt(ex * ex + ey * ey);
-                if (band > 0 && band < 50) h = Math.max(h, Math.sin(band / 50 * Math.PI) * rp.p);
-              }
+      ctx.clearRect(0, 0, sh.w, sh.h);
+      if (sh.v < .001 && !reduce) return;
+      const base = CELLS.map(() => new Path2D()), glow = [0, 1, 2, 3, 4].map(() => new Path2D());
+      const add = (path, x, y, s) => { const o = s / 2; if (rr) path.roundRect(x - o, y - o, s, s, s * .22); else path.rect(x - o, y - o, s, s); };
+      // ripples live in page coordinates, so they stay put while the page scrolls
+      const rising = sh.target >= sh.v, lmx = mx - bx, lmy = my - by, ox = bx + scrollX, oy = by + scrollY;
+      for (let i = 0; i < sh.n; i++) {
+        const e = reduce ? 1 : clamp((sh.v - sh.th[i]) / WIN), ee = outCubic(e);
+        let h = sh.heat[i];
+        if (!reduce) {
+          if (e > 0 && !sh.seen[i]) { sh.seen[i] = 1; if (rising && sh.l[i] > 0) h = Math.max(h, .7); }
+          if (e <= 0) sh.seen[i] = 0;
+          const tx = sh.sx[i] + (sh.hx[i] - sh.sx[i]) * ee, ty = sh.sy[i] + (sh.hy[i] - sh.sy[i]) * ee;
+          let vx = (sh.vx[i] + (tx - sh.px[i]) * .11) * .8, vy = (sh.vy[i] + (ty - sh.py[i]) * .11) * .8;
+          if (e > 0) {
+            const dx = sh.px[i] - lmx, dy = sh.py[i] - lmy, d2 = dx * dx + dy * dy;
+            if (d2 < R2) { const d = Math.sqrt(d2) || 1, f = 1 - d / R; h += (Math.max(h, .35 + f * .65) - h) * .3; vx += dx / d * f * .8; vy += dy / d * f * .8; }
+            for (const rp of ripples) {
+              const rad = (now - rp.t) * .85, ex = ox + sh.px[i] - rp.x, ey = oy + sh.py[i] - rp.y, band = rad - Math.sqrt(ex * ex + ey * ey);
+              if (band > 0 && band < 50) h = Math.max(h, Math.sin(band / 50 * Math.PI) * rp.p);
             }
-            sh.vx[i] = vx; sh.vy[i] = vy; sh.px[i] += vx; sh.py[i] += vy;
-            h *= .955; sh.heat[i] = h;
           }
-          if (e <= 0) continue;
-          const s = sh.s * (.3 + .7 * ee) * (1 + Math.min(h, 1) * .22), x = bx + sh.px[i], y = by + sh.py[i];
-          add(base[sh.l[i]], x, y, s);
-          if (h > .06) add(glow[Math.min(4, h * 5 | 0)], x, y, s);
+          sh.vx[i] = vx; sh.vy[i] = vy; sh.px[i] += vx; sh.py[i] += vy;
+          h *= .955; sh.heat[i] = h;
         }
-        if (!reduce && sh.v > .9) for (let q = 0; q < 2; q++) { const i = Math.random() * sh.n | 0; if (sh.l[i] > 0 && sh.heat[i] < .3) sh.heat[i] = .3; }
-        ctx.save();
-        ctx.beginPath(); if (rr) ctx.roundRect(r.left - 2, r.top - 2, r.width + 4, r.height + 4, 14); else ctx.rect(r.left - 2, r.top - 2, r.width + 4, r.height + 4); ctx.clip();
-        base.forEach((p, b) => { ctx.fillStyle = CELLS[b]; ctx.fill(p); });
-        glow.forEach((p, b) => { ctx.fillStyle = `rgba(${HOT},${(b + 1) * .17})`; ctx.fill(p); });
-        ctx.restore();
+        if (e <= 0) continue;
+        const s = sh.s * (.3 + .7 * ee) * (1 + Math.min(h, 1) * .22);
+        add(base[sh.l[i]], sh.px[i], sh.py[i], s);
+        if (h > .06) add(glow[Math.min(4, h * 5 | 0)], sh.px[i], sh.py[i], s);
       }
+      if (!reduce && sh.v > .9) for (let q = 0; q < 2; q++) { const i = Math.random() * sh.n | 0; if (sh.l[i] > 0 && sh.heat[i] < .3) sh.heat[i] = .3; }
+      base.forEach((p, b) => { ctx.fillStyle = CELLS[b]; ctx.fill(p); });
+      glow.forEach((p, b) => { ctx.fillStyle = `rgba(${HOT},${(b + 1) * .17})`; ctx.fill(p); });
     }
     function frame(now) {
       const dt = Math.min(64, now - (last || now)); last = now;
-      if (!document.hidden) render(dt, now);
+      if (!document.hidden) {
+        const reach = Math.max(innerWidth, innerHeight) * 1.2;
+        ripples = ripples.filter(r => (now - r.t) * .85 < reach);
+        for (const sh of shapes) if (near.has(sh.slot)) draw(sh, dt, now);
+      }
       requestAnimationFrame(frame);
     }
     // click on a drawing: cells burst away from the pointer, spring back home and light up in a ring
@@ -528,19 +539,29 @@ import { loadGitHub } from './github.js';
         const dx = sh.px[i] - lx, dy = sh.py[i] - ly, d = Math.sqrt(dx * dx + dy * dy) || 1;
         if (d < RB) { const f = Math.pow(1 - d / RB, 1.5); sh.vx[i] += dx / d * f * 16 + (Math.random() - .5) * f * 4; sh.vy[i] += dy / d * f * 16 + (Math.random() - .5) * f * 4; }
       }
-      ripples.push({ x, y, t: performance.now(), p: 1 });
+      ripples.push({ x: x + scrollX, y: y + scrollY, t: performance.now(), p: 1 });
     }
 
+    // only slots near the viewport animate; leaving that band snaps a shape back to its start so it re-enters fresh
+    const io = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) near.add(e.target);
+      else { near.delete(e.target); const sh = shapes.find(s => s.slot === e.target); if (sh && !reduce) reset(sh); }
+    }), { rootMargin: '40% 0px' });
+    slots.forEach(s => io.observe(s));
+
     addEventListener('pointermove', e => { mx = e.clientX; my = e.clientY; }, { passive: true });
+    // a finger leaves no hover behind: forget its position once the touch ends or turns into a scroll
+    const forget = e => { if (e.pointerType !== 'mouse') mx = my = -1e4; };
+    addEventListener('pointerup', forget, { passive: true });
+    addEventListener('pointercancel', forget, { passive: true });
     document.addEventListener('pointerleave', () => { mx = my = -1e4; });
     addEventListener('blur', () => { mx = my = -1e4; });
     addEventListener('pointerdown', e => {
       if (reduce || e.target.closest('a,button,input,.card,.ptab,code,.commit-card,.cgrid')) return;
       const k = shapes.findIndex(sh => { const r = sh.slot.getBoundingClientRect(); return sh.v > .5 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; });
       if (k >= 0) { burst(shapes[k], e.clientX, e.clientY); onSlotClick(k); }
-      else ripples.push({ x: e.clientX, y: e.clientY, t: performance.now(), p: .55 });
+      else ripples.push({ x: e.clientX + scrollX, y: e.clientY + scrollY, t: performance.now(), p: .55 });
     });
-    addEventListener('resize', () => { sizeCanvas(); if (reduce && built) render(0, performance.now()); });
     // shapes are laid out from their slot's size, so rebuild whenever a slot's box changes:
     // late CSS/fonts, rotation, breakpoints. The hero sets its own height, so only its width counts.
     const seen = new Map(); let rt;
@@ -553,15 +574,14 @@ import { loadGitHub } from './github.js';
       if (changed && built) { clearTimeout(rt); rt = setTimeout(build, 120); }
     });
     slots.forEach(s => ro.observe(s));
-    addEventListener('scroll', () => { if (reduce && built) render(0, performance.now()); }, { passive: true });
 
     return {
       start() { build(); if (!reduce && !running) { running = true; requestAnimationFrame(frame); } },
       onClick(fn) { onSlotClick = fn; },
       pulse() {
         if (reduce || !built) return;
-        const sh = shapes.find(s => { const r = s.slot.getBoundingClientRect(); return r.top < H * .7 && r.bottom > H * .3; });
-        if (sh) { const r = sh.slot.getBoundingClientRect(); ripples.push({ x: r.left + r.width / 2, y: r.top + r.height / 2, t: performance.now(), p: .8 }); }
+        const H = innerHeight, sh = shapes.find(s => { const r = s.slot.getBoundingClientRect(); return r.top < H * .7 && r.bottom > H * .3; });
+        if (sh) { const r = sh.slot.getBoundingClientRect(); ripples.push({ x: r.left + r.width / 2 + scrollX, y: r.top + r.height / 2 + scrollY, t: performance.now(), p: .8 }); }
       }
     };
   })();
