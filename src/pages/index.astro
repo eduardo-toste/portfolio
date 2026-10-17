@@ -8,7 +8,7 @@ import Base from '../layouts/Base.astro';
 <header class="top">
   <div class="wrap top-in">
     <a class="logo" href="#inicio"><i aria-hidden="true"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></i>eduardo toste</a>
-    <nav class="nav" aria-label="Seções">
+    <nav class="nav" aria-label="Seções" data-ta="a.nav">
       <a href="#stack" data-t="nav.stack">Stack</a>
       <a href="#projetos" data-t="nav.proj">Projetos</a>
       <a href="#github" data-t="nav.gh">GitHub</a>
@@ -16,7 +16,7 @@ import Base from '../layouts/Base.astro';
       <a href="#contato" data-t="nav.contact">Contato</a>
     </nav>
     <div class="tools">
-      <div class="lang" role="group" aria-label="Idioma">
+      <div class="lang" role="group" aria-label="Idioma" data-ta="a.lang">
         <button type="button" data-lang="pt" aria-pressed="true">PT</button>
         <button type="button" data-lang="en" aria-pressed="false">EN</button>
       </div>
@@ -37,8 +37,8 @@ import Base from '../layouts/Base.astro';
           <span id="ghead"><b>—</b> contribuições no último ano</span>
           <span class="legend"><span data-t="graph.less">Menos</span><i style="background:var(--c0)"></i><i style="background:var(--c1)"></i><i style="background:var(--c2)"></i><i style="background:var(--c3)"></i><i style="background:var(--c4)"></i><span data-t="graph.more">Mais</span></span>
         </div>
-        <div class="graph slot" data-shape="name" style="border:0;border-radius:0;aspect-ratio:auto;max-height:none;background:none" role="img" aria-label="Eduardo Toste escrito com quadrados do gráfico de contribuições"></div>
-        <div class="graph-foot"><span data-t="graph.hint">passe o mouse para commitar · clique para soltar uma onda</span><span data-t="graph.scroll">role para explorar ↓</span></div>
+        <div class="graph slot" data-shape="name" style="border:0;border-radius:0;aspect-ratio:auto;max-height:none;background:none" role="img" aria-label="Eduardo Toste escrito com quadrados do gráfico de contribuições" data-ta="a.name"></div>
+        <div class="graph-foot"><span data-t="graph.hint">passe o mouse para commitar · clique no gráfico para um novo commit</span><span data-t="graph.scroll">role para explorar ↓</span></div>
       </div>
       <h1 class="sr">Eduardo Toste</h1>
       <div class="hero-bot">
@@ -93,7 +93,7 @@ import Base from '../layouts/Base.astro';
           <h2 class="split" data-t="proj.title">Coisas que eu construí</h2>
         </div>
         <div class="proj rv" style="--d:150ms">
-          <div class="ptabs" role="tablist" aria-label="Projetos" id="ptabs"></div>
+          <div class="ptabs" role="tablist" aria-label="Projetos" data-ta="a.proj" id="ptabs"></div>
           <div class="card pdetail" role="tabpanel" id="pdetail" tabindex="0"></div>
         </div>
       </div>
@@ -122,7 +122,7 @@ import Base from '../layouts/Base.astro';
             <div><b id="gh-top">—</b><span id="gh-top-l">melhor dia</span></div>
           </div>
         </div>
-        <div class="card heat-wrap rv" style="--d:220ms"><div class="heat" id="heat" role="img" aria-label="Mapa de contribuições do último ano"></div><div class="heat-foot"><span id="gh-year"></span><span data-t="gh.today">hoje ▢</span></div></div>
+        <div class="card heat-wrap rv" style="--d:220ms"><div class="heat" id="heat" role="img" aria-label="Mapa de contribuições do último ano" data-ta="a.heat"></div><div class="heat-foot"><span id="gh-year"></span><span data-t="gh.today">hoje ▢</span></div></div>
         <div class="repos-wrap rv" style="--d:300ms" id="repos-wrap" hidden>
           <div class="repos-head"><p class="sublabel" data-t="gh.repos">repositórios atualizados recentemente</p><a href="https://github.com/eduardo-toste?tab=repositories" target="_blank" rel="noopener" data-t="gh.all">Ver todos no GitHub ↗</a></div>
           <div class="repos" id="repos"></div>

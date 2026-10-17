@@ -25,11 +25,12 @@ import { loadGitHub } from './github.js';
       'proj.updated':d => `atualizado ${d}`,'proj.stars':n => `${n} ★`,
       'gh.title':'Atividade no GitHub','gh.total':'contribuições no último ano',
       'gh.loading':'carregando dados do GitHub…','gh.live':'dados reais · API do GitHub','gh.error':'não foi possível carregar o GitHub agora · tente recarregar',
-      'gh.days':'dias ativos','gh.streak':'sequência atual','gh.best':'maior sequência','gh.top':'melhor dia','gh.today':'hoje ▢',
+      'gh.cell':n => `${n} ${n === 1 ? 'contribuição' : 'contribuições'}`,'gh.days':'dias ativos','gh.streak':'sequência atual','gh.best':'maior sequência','gh.top':'melhor dia','gh.today':'hoje ▢',
       'gh.repos':'repositórios atualizados recentemente','gh.all':'Ver todos no GitHub ↗',
       'traj.title':'Experiência e formação','traj.now':'atual',
       'contact.title':'Vamos conversar?','contact.lead':'Quer falar sobre backend, Java ou algum projeto? Me chame no LinkedIn. Falo inglês em nível avançado (C1).',
-      'footer':'Feito com Astro e muitos commits.'
+      'footer':'Feito com Astro e muitos commits.',
+      'a.nav':'Seções','a.lang':'Idioma','a.proj':'Projetos','a.heat':'Mapa de contribuições do último ano','a.name':'Eduardo Toste escrito com quadrados do gráfico de contribuições'
     },
     en: {
       'nav.stack':'Stack','nav.proj':'Projects','nav.gh':'GitHub','nav.traj':'Journey','nav.contact':'Contact',
@@ -47,11 +48,12 @@ import { loadGitHub } from './github.js';
       'proj.updated':d => `updated ${d}`,'proj.stars':n => `${n} ★`,
       'gh.title':'GitHub activity','gh.total':'contributions in the last year',
       'gh.loading':'loading GitHub data…','gh.live':'live data · GitHub API','gh.error':'couldn’t load GitHub right now · try reloading',
-      'gh.days':'active days','gh.streak':'current streak','gh.best':'longest streak','gh.top':'best day','gh.today':'today ▢',
+      'gh.cell':n => `${n} ${n === 1 ? 'contribution' : 'contributions'}`,'gh.days':'active days','gh.streak':'current streak','gh.best':'longest streak','gh.top':'best day','gh.today':'today ▢',
       'gh.repos':'recently updated repositories','gh.all':'See all on GitHub ↗',
       'traj.title':'Experience & education','traj.now':'current',
       'contact.title':'Let’s talk','contact.lead':'Want to talk about backend, Java or a project? Reach out on LinkedIn. My English is advanced (C1).',
-      'footer':'Built with Astro and a lot of commits.'
+      'footer':'Built with Astro and a lot of commits.',
+      'a.nav':'Sections','a.lang':'Language','a.proj':'Projects','a.heat':'Contribution map for the last year','a.name':'Eduardo Toste written with contribution graph squares'
     }
   };
   const STACK = [
@@ -154,7 +156,7 @@ import { loadGitHub } from './github.js';
     const tabs = document.getElementById('ptabs'), d = document.getElementById('pdetail');
     tabs.innerHTML = PROJECTS.map((p, i) => `<button class="ptab" role="tab" id="pt-${i}" aria-controls="pdetail" aria-selected="${i === curProj}" tabindex="${i === curProj ? 0 : -1}">${v(p.name)}<span>${v(p.kind)}</span></button>`).join('');
     const p = PROJECTS[curProj], r = repoInfo(p.repo), ui = repoInfo(p.ui);
-    const meta = r ? [r.lang, r.stars ? t('proj.stars')(r.stars) : '', t('proj.updated')(fmtMonth(r.pushed))].filter(Boolean) : [];
+    const meta = r ? [r.lang, r.stars ? t('proj.stars')(r.stars) : '', r.pushed ? t('proj.updated')(fmtMonth(r.pushed)) : ''].filter(Boolean) : [];
     d.setAttribute('aria-labelledby', `pt-${curProj}`);
     d.innerHTML = `
       <span class="pstatus">${v(p.kind)}</span>
@@ -205,10 +207,11 @@ import { loadGitHub } from './github.js';
     document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
     document.querySelectorAll('[data-t]').forEach(el => { const s = t(el.dataset.t); if (typeof s === 'string') el.textContent = s; });
     document.querySelectorAll('[data-th]').forEach(el => el.innerHTML = t(el.dataset.th));
+    document.querySelectorAll('[data-ta]').forEach(el => el.setAttribute('aria-label', t(el.dataset.ta)));
     document.querySelectorAll('h2.split').forEach(el => split(el));
     split(document.getElementById('role'), t('role'));
     document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === lang));
-    renderStack(); renderProjects(false); renderTimeline(); renderGraphHead(); renderGitHub(); renderTicker();
+    renderStack(); renderProjects(false); renderTimeline(); renderGraphHead(); renderHeat(); renderGitHub(); renderTicker();
     document.querySelectorAll('[data-count]').forEach(b => { if (b.dataset.done) { const dec = +(b.dataset.dec || 0); b.textContent = parseFloat(b.dataset.count).toLocaleString(loc(), { minimumFractionDigits: dec, maximumFractionDigits: dec }) + (b.dataset.suffix || ''); } });
   }
   document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => { if (lang === b.dataset.lang) return; lang = b.dataset.lang; store.set('pf-lang', lang); applyLang(); }));
@@ -223,8 +226,8 @@ import { loadGitHub } from './github.js';
   const esc = x => String(x).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   const toDate = x => new Date(x.length === 10 ? x + 'T12:00:00' : x);
   const mon = d => d.toLocaleDateString(loc(), { month: 'short' }).replace('.', '');
-  const fmtMonth = x => { const d = toDate(x); return `${mon(d)} ${d.getFullYear()}`; };
-  const fmtDay = x => { const d = toDate(x); return `${String(d.getDate()).padStart(2, '0')} ${mon(d)}`; };
+  const fmtMonth = x => { if (!x) return ''; const d = toDate(x); return `${mon(d)} ${d.getFullYear()}`; };
+  const fmtDay = x => { if (!x) return ''; const d = toDate(x); return `${String(d.getDate()).padStart(2, '0')} ${mon(d)}`; };
   const repoInfo = name => gh.repos?.find(r => r.name.toLowerCase() === name?.toLowerCase()) || null;
   const ownRepos = () => (gh.repos || []).filter(r => !r.fork && !r.archived && r.name.toLowerCase() !== GH_USER);
 
@@ -244,8 +247,8 @@ import { loadGitHub } from './github.js';
     el.innerHTML = c.cells.map((d, i) => {
       const col = Math.floor(i / 7);
       if (!d) return `<i class="${d === undefined ? 'pad' : ''}" style="--c:${col}"></i>`;
-      const label = `${d.count} — ${toDate(d.date).toLocaleDateString(loc())}`;
-      return `<i class="l${d.level}${i === last ? ' today' : ''}" style="--c:${col}" title="${label}"></i>`;
+      const label = `${t('gh.cell')(d.count)} · ${toDate(d.date).toLocaleDateString(loc())}`;
+      return `<i class="l${d.level}${i === last ? ' today' : ''}" style="--c:${col}" title="${esc(label)}"></i>`;
     }).join('');
   }
 
@@ -260,7 +263,7 @@ import { loadGitHub } from './github.js';
     const list = ownRepos().slice(0, 4), box = document.getElementById('repos');
     document.getElementById('repos-wrap').hidden = !list.length;
     box.innerHTML = list.map((r, i) => `
-      <a class="card hov repo rv in" style="--d:${i * 60}ms" href="${r.url}" target="_blank" rel="noopener">
+      <a class="card hov repo rv in" style="--d:${i * 60}ms" href="${r.url || `https://github.com/${GH_USER}/${encodeURIComponent(r.name)}`}" target="_blank" rel="noopener">
         <b>${esc(r.name)}</b>
         <p>${esc(r.desc || '')}</p>
         <span class="rmeta">${[r.lang, r.stars ? `★ ${r.stars}` : '', fmtMonth(r.pushed)].filter(Boolean).map(esc).join(' · ')}</span>
@@ -299,7 +302,7 @@ import { loadGitHub } from './github.js';
   }
   addEventListener('scroll', onScroll, { passive: true });
   document.addEventListener('pointermove', e => {
-    const el = e.target.closest?.('.card,.cgrid a,.cgrid button,.ptab'); if (!el) return;
+    const el = e.target.closest?.('.card,.cgrid a,.ptab'); if (!el) return;
     const r = el.getBoundingClientRect(); el.style.setProperty('--mx', `${e.clientX - r.left}px`); el.style.setProperty('--my', `${e.clientY - r.top}px`);
   }, { passive: true });
 

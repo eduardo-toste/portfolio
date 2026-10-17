@@ -5,7 +5,8 @@
 // Each source settles on its own: if one fails, the others still render.
 
 const TTL = 30 * 60 * 1000;
-const cacheKey = (user, k) => `gh:${user}:${k}`;
+// bump the version when the cached shape changes, so old entries are ignored
+const cacheKey = (user, k) => `gh2:${user}:${k}`;
 
 function readCache(key) {
   try {
@@ -28,6 +29,13 @@ async function cached(user, k, load) {
   const d = await load();
   writeCache(key, d);
   return d;
+}
+
+const str = x => typeof x === 'string' && x ? x : null;
+const num = x => Math.max(0, Number(x) | 0);
+// only https links (optionally on one host) are allowed into hrefs
+function safeUrl(u, host) {
+  try { const x = new URL(u); return x.protocol === 'https:' && (!host || x.hostname === host) ? x.href : null; } catch { return null; }
 }
 
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -61,12 +69,19 @@ export async function loadGitHub(user) {
     cached(user, 'profile', () => getJSON(`https://api.github.com/users/${user}`)),
     cached(user, 'repos', async () => {
       const list = await getJSON(`https://api.github.com/users/${user}/repos?per_page=100&sort=pushed`);
-      return list.map(r => ({
-        name: r.name, url: r.html_url, desc: r.description, lang: r.language, stars: r.stargazers_count,
-        forks: r.forks_count, fork: r.fork, archived: r.archived, pushed: r.pushed_at, homepage: r.homepage
+      if (!Array.isArray(list)) throw new Error('repos: unexpected format');
+      return list.filter(r => r && typeof r.name === 'string').map(r => ({
+        name: r.name, url: safeUrl(r.html_url, 'github.com'), desc: str(r.description), lang: str(r.language), stars: num(r.stargazers_count),
+        fork: !!r.fork, archived: !!r.archived, pushed: str(r.pushed_at), homepage: safeUrl(r.homepage)
       }));
     }),
-    cached(user, 'calendar', async () => (await getJSON(`https://github-contributions-api.jogruber.de/v4/${user}?y=last`)).contributions)
+    // third-party mirror: normalize every field so nothing unexpected reaches the page
+    cached(user, 'calendar', async () => {
+      const list = (await getJSON(`https://github-contributions-api.jogruber.de/v4/${user}?y=last`)).contributions;
+      if (!Array.isArray(list)) throw new Error('calendar: unexpected format');
+      return list.filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.date))
+        .map(d => ({ date: d.date, count: num(d.count), level: Math.min(4, num(d.level)) }));
+    })
   ]);
   const val = p => p.status === 'fulfilled' ? p.value : null;
   return {

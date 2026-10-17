@@ -3,20 +3,33 @@ import '../styles/global.css';
 
 const title = 'Eduardo Toste · Engenheiro de Software';
 const description = 'Eduardo Toste, Engenheiro de Software. Arquitetura, APIs, nuvem e qualidade, explorando IA generativa em produtos e no desenvolvimento de software.';
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const canonical = new URL(base, Astro.site).href;
+// GitHub Pages can't send headers, so the policy ships as a meta tag (frame-ancestors isn't supported there)
+const csp = [
+  "default-src 'none'", "script-src 'self'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  'font-src https://fonts.gstatic.com', "img-src 'self' data:",
+  'connect-src https://api.github.com https://github-contributions-api.jogruber.de',
+  "base-uri 'none'", "form-action 'none'", 'upgrade-insecure-requests'
+].join('; ');
 ---
 <!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content={csp} />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
     <meta name="theme-color" content="#0D1117" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@600;700;800&display=swap" />
