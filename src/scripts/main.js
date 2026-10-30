@@ -171,7 +171,7 @@ import { loadGitHub } from './github.js';
       <ul class="phl">${p.items[lang].map(x => `<li>${x}</li>`).join('')}</ul>
       <div class="chips">${p.tech.map(s => `<span>${s}</span>`).join('')}</div>
       ${meta.length ? `<p class="gmeta">${meta.map(esc).join(' · ')}</p>` : ''}
-      <div class="plinks"><a class="btn g sm" href="${r?.url || `https://github.com/${GH_USER}/${p.repo}`}" target="_blank" rel="noopener">${t('proj.code')} ↗</a>${p.ui ? `<a class="btn g sm" href="${ui?.url || `https://github.com/${GH_USER}/${p.ui}`}" target="_blank" rel="noopener">${t('proj.ui')} ↗</a>` : ''}${r?.homepage ? `<a class="btn g sm" href="${esc(r.homepage)}" target="_blank" rel="noopener">${t('proj.live')} ↗</a>` : ''}</div>`;
+      <div class="plinks"><a class="btn g sm" href="${esc(r?.url || `https://github.com/${GH_USER}/${p.repo}`)}" target="_blank" rel="noopener">${t('proj.code')} ↗</a>${p.ui ? `<a class="btn g sm" href="${esc(ui?.url || `https://github.com/${GH_USER}/${p.ui}`)}" target="_blank" rel="noopener">${t('proj.ui')} ↗</a>` : ''}${r?.homepage ? `<a class="btn g sm" href="${esc(r.homepage)}" target="_blank" rel="noopener">${t('proj.live')} ↗</a>` : ''}</div>`;
     if (animate && !reduce) { d.classList.remove('swap'); void d.offsetWidth; d.classList.add('swap'); }
     tabs.querySelectorAll('.ptab').forEach((b, i) => {
       b.addEventListener('click', () => { if (i === curProj) return; curProj = i; renderProjects(true); document.getElementById(`pt-${i}`).focus(); FX.pulse(); });
@@ -202,7 +202,7 @@ import { loadGitHub } from './github.js';
     const dot = () => { const q = r(); return `<i style="background:var(--c${q < .3 ? 2 : q < .7 ? 3 : 4})"></i>`; };
     const repos = ownRepos().slice(0, 12);
     const items = repos.length
-      ? repos.map(x => `<span>${dot()}<b>${fmtDay(x.pushed)}</b><em>push(${esc(x.name)}):</em> ${esc(x.desc ? x.desc.slice(0, 70) + (x.desc.length > 70 ? '…' : '') : x.lang || 'update')}</span>`).join('')
+      ? repos.map(x => `<span>${dot()}<b>${esc(fmtDay(x.pushed))}</b><em>push(${esc(x.name)}):</em> ${esc(x.desc ? x.desc.slice(0, 70) + (x.desc.length > 70 ? '…' : '') : x.lang || 'update')}</span>`).join('')
       : COMMITS.map(c => { const [type, ...rest] = c.split(':'); return `<span>${dot()}<b>${hex()}</b><em>${type}:</em>${rest.join(':')}</span>`; }).join('');
     document.getElementById('ticker').innerHTML = items + items;
   }
@@ -267,7 +267,7 @@ import { loadGitHub } from './github.js';
     const list = ownRepos().slice(0, 4), box = document.getElementById('repos');
     document.getElementById('repos-wrap').hidden = !list.length;
     box.innerHTML = list.map((r, i) => `
-      <a class="card hov repo rv in" style="--d:${i * 60}ms" href="${r.url || `https://github.com/${GH_USER}/${encodeURIComponent(r.name)}`}" target="_blank" rel="noopener">
+      <a class="card hov repo rv in" style="--d:${i * 60}ms" href="${esc(r.url || `https://github.com/${GH_USER}/${encodeURIComponent(r.name)}`)}" target="_blank" rel="noopener">
         <b>${esc(r.name)}</b>
         <p>${esc(r.desc || '')}</p>
         <span class="rmeta">${[r.lang, r.stars ? `★ ${r.stars}` : '', fmtMonth(r.pushed)].filter(Boolean).map(esc).join(' · ')}</span>

@@ -23,10 +23,11 @@ async function getJSON(url) {
   return res.json();
 }
 
-async function cached(user, k, load) {
+// localStorage is shared by every Pages site on this origin, so cached data is cleaned again on read
+async function cached(user, k, load, clean) {
   const key = cacheKey(user, k), hit = readCache(key);
-  if (hit) return hit;
-  const d = await load();
+  if (hit) { try { return clean(hit); } catch {} }
+  const d = clean(await load());
   writeCache(key, d);
   return d;
 }
@@ -64,24 +65,33 @@ export function summarizeCalendar(days, today = new Date()) {
   return { cells, total, active, current, longest, best, bestDate, from: win[0]?.date, to: win[win.length - 1]?.date };
 }
 
+const cleanProfile = p => ({ public_repos: typeof p?.public_repos === 'number' ? num(p.public_repos) : null });
+function cleanRepos(list) {
+  if (!Array.isArray(list)) throw new Error('repos: unexpected format');
+  return list.filter(r => r && typeof r.name === 'string').map(r => ({
+    name: r.name, url: safeUrl(r.url, 'github.com'), desc: str(r.desc), lang: str(r.lang), stars: num(r.stars),
+    fork: !!r.fork, archived: !!r.archived, pushed: str(r.pushed), homepage: safeUrl(r.homepage)
+  }));
+}
+// third-party mirror: normalize every field so nothing unexpected reaches the page
+function cleanCalendar(list) {
+  if (!Array.isArray(list)) throw new Error('calendar: unexpected format');
+  return list.filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.date))
+    .map(d => ({ date: d.date, count: num(d.count), level: Math.min(4, num(d.level)) }));
+}
+
 export async function loadGitHub(user) {
   const [profile, repos, calendar] = await Promise.allSettled([
-    cached(user, 'profile', () => getJSON(`https://api.github.com/users/${user}`)),
+    cached(user, 'profile', () => getJSON(`https://api.github.com/users/${user}`), cleanProfile),
     cached(user, 'repos', async () => {
       const list = await getJSON(`https://api.github.com/users/${user}/repos?per_page=100&sort=pushed`);
-      if (!Array.isArray(list)) throw new Error('repos: unexpected format');
-      return list.filter(r => r && typeof r.name === 'string').map(r => ({
-        name: r.name, url: safeUrl(r.html_url, 'github.com'), desc: str(r.description), lang: str(r.language), stars: num(r.stargazers_count),
-        fork: !!r.fork, archived: !!r.archived, pushed: str(r.pushed_at), homepage: safeUrl(r.homepage)
-      }));
-    }),
-    // third-party mirror: normalize every field so nothing unexpected reaches the page
-    cached(user, 'calendar', async () => {
-      const list = (await getJSON(`https://github-contributions-api.jogruber.de/v4/${user}?y=last`)).contributions;
-      if (!Array.isArray(list)) throw new Error('calendar: unexpected format');
-      return list.filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.date))
-        .map(d => ({ date: d.date, count: num(d.count), level: Math.min(4, num(d.level)) }));
-    })
+      return Array.isArray(list) ? list.map(r => r && ({
+        name: r.name, url: r.html_url, desc: r.description, lang: r.language, stars: r.stargazers_count,
+        fork: r.fork, archived: r.archived, pushed: r.pushed_at, homepage: r.homepage
+      })) : list;
+    }, cleanRepos),
+    cached(user, 'calendar', async () =>
+      (await getJSON(`https://github-contributions-api.jogruber.de/v4/${user}?y=last`)).contributions, cleanCalendar)
   ]);
   const val = p => p.status === 'fulfilled' ? p.value : null;
   return {
